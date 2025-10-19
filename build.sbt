@@ -4,28 +4,29 @@ ThisBuild / scalaVersion := "3.7.3"
 // Common settings for all modules
 lazy val commonSettings = Seq(
   libraryDependencies ++= Seq(
-    "com.lihaoyi" %% "upickle" % "3.1.3"
+    "com.lihaoyi" %% "upickle" % "4.4.0"
   )
 )
 
 lazy val serviceSettings = commonSettings ++ Seq(
   libraryDependencies ++= Seq(
-    "com.lihaoyi" %% "cask" % "0.9.1"
+    "com.lihaoyi" %% "cask" % "0.11.3"
   )
 )
 
 lazy val clientSettings = commonSettings ++ Seq(
   libraryDependencies ++= Seq(
-    "com.lihaoyi" %% "requests" % "0.8.0"
+    "com.lihaoyi" %% "requests" % "0.9.0"
   )
 )
 
-// Integration test configuration
-lazy val IntegrationTest = config("it") extend Test
-
-lazy val integrationTestSettings = Defaults.itSettings ++ Seq(
-  IntegrationTest / fork              := true,
-  IntegrationTest / parallelExecution := false
+lazy val databaseSettings = commonSettings ++ Seq(
+  libraryDependencies ++= Seq(
+    "com.typesafe.slick" %% "slick"           % "3.6.1",
+    "com.typesafe.slick" %% "slick-hikaricp"  % "3.6.1",
+    "org.postgresql"      % "postgresql"      % "42.7.8",
+    "ch.qos.logback"      % "logback-classic" % "1.5.20"
+  )
 )
 
 // Root project
@@ -53,6 +54,7 @@ lazy val database = (project in file("modules/database"))
   .settings(
     name := "database-service",
     serviceSettings,
+    databaseSettings,
     Compile / mainClass := Some("database.DatabaseService")
   )
 
@@ -79,10 +81,18 @@ lazy val inventory = (project in file("modules/inventory"))
 // Checkout service (includes integration tests)
 lazy val checkout = (project in file("modules/checkout"))
   .enablePlugins(JavaServerAppPackaging)
-  .configs(IntegrationTest)
   .dependsOn(domain)
   .settings(
     name := "checkout-service",
-    serviceSettings ++ clientSettings ++ integrationTestSettings,
+    serviceSettings ++ clientSettings,
     Compile / mainClass := Some("checkout.CheckoutService")
+  )
+
+// Integration tests as a separate subproject (modern SBT best practice)
+lazy val integrationTests = (project in file("modules/integration-tests"))
+  .dependsOn(domain)
+  .settings(
+    name := "integration-tests",
+    clientSettings,
+    publish / skip := true
   )
