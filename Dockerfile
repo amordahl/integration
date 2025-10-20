@@ -1,7 +1,7 @@
 # Multi-stage build for all services using sbt-native-packager
 
 # Stage 0: Build stage with SBT
-FROM hseeberger/scala-sbt:17.0.2_1.9.7_3.3.0 AS builder
+FROM sbtscala/scala-sbt:eclipse-temurin-17.0.15_6_1.11.7_3.7.3 AS builder
 
 WORKDIR /app
 
@@ -51,7 +51,7 @@ CMD ["./bin/checkout-service"]
 
 # Stage 5: Integration Tests
 # This stage runs the integration tests from the separate integration-tests module
-FROM hseeberger/scala-sbt:17.0.2_1.9.7_3.3.0 AS tests
+FROM sbtscala/scala-sbt:eclipse-temurin-17.0.15_6_1.11.7_3.7.3 AS tests
 WORKDIR /app
 
 COPY build.sbt .

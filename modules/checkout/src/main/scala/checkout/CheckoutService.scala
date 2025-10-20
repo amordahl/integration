@@ -1,7 +1,5 @@
 package checkout
 
-package checkout
-
 import cask.main.Main
 import domain.*
 import upickle.default.*

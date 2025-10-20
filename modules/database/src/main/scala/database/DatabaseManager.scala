@@ -69,7 +69,7 @@ object DatabaseManager:
   end initialize
 
   def readyCheck(): Unit =
-    Await.result(db.run(DBIO.seq(sqlu"SELECT 1")), 10.seconds)
+    Await.result(db.run(sql"SELECT 1".as[Int]), 10.seconds)
     println("Database ready")
 
   def getProduct(id: String): Future[Option[Product]] =
