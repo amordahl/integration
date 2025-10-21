@@ -15,6 +15,13 @@ CREATE TABLE IF NOT EXISTS orders (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Insert initial product data
+INSERT INTO products (id, name, price, stock) VALUES
+    ('P1', 'Laptop', 999.99, 10),
+    ('P2', 'Mouse', 29.99, 50),
+    ('P3', 'Keyboard', 79.99, 30)
+ON CONFLICT (id) DO NOTHING;
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);
