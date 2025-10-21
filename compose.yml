@@ -1,103 +1,24 @@
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: postgres-db
-    environment:
-      - POSTGRES_DB=ecommerce
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-    ports:
-      - "5432:5432"
-    volumes:
-      - db-data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    networks:
-      - app-network
-
-  database:
-    build:
-      context: .
-      target: database
-    container_name: database-service
-    environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_NAME=ecommerce
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-    ports:
-      - "8080:8080"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8080/health" ]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    networks:
-      - app-network
-
-  payment:
-    build:
-      context: .
-      target: payment
-    container_name: payment-service
-    ports:
-      - "8081:8081"
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8081/health" ]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    networks:
-      - app-network
-
-  inventory:
-    build:
-      context: .
-      target: inventory
-    container_name: inventory-service
-    environment:
-      - DATABASE_URL=http://database:8080
-    ports:
-      - "8082:8082"
-    depends_on:
-      database:
-        condition: service_healthy
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8082/health" ]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    networks:
-      - app-network
-
   checkout:
     build:
       context: .
       target: checkout
     container_name: checkout-service
     environment:
-      - DATABASE_URL=http://database:8080
-      - PAYMENT_URL=http://payment:8081
-      - INVENTORY_URL=http://inventory:8082
+      - DATABASE_URL=http://database-stub:8080
+      - PAYMENT_URL=http://payment-stub:8081
+      - INVENTORY_URL=http://inventory-stub:8082
     ports:
       - "8083:8083"
     depends_on:
-      database:
+      database-stub:
         condition: service_healthy
-      payment:
+      payment-stub:
         condition: service_healthy
-      inventory:
+      inventory-stub:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8083/health" ]
+      test: ["CMD", "curl", "-f", "http://localhost:8083/health"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -110,19 +31,74 @@ services:
       target: tests
     container_name: integration-tests
     environment:
-      - DATABASE_URL=http://database:8080
-      - PAYMENT_URL=http://payment:8081
-      - INVENTORY_URL=http://inventory:8082
+      - DATABASE_URL=http://database-stub:8080
+      - PAYMENT_URL=http://payment-stub:8081
+      - INVENTORY_URL=http://inventory-stub:8082
       - CHECKOUT_URL=http://checkout:8083
     depends_on:
-      database:
+      database-stub:
         condition: service_healthy
-      payment:
+      payment-stub:
         condition: service_healthy
-      inventory:
+      inventory-stub:
         condition: service_healthy
       checkout:
         condition: service_healthy
+    networks:
+      - app-network
+
+  database-stub:
+    build:
+      context: .
+      target: stubs
+    container_name: database-stub
+    environment:
+      - STUB_TYPE=database
+    ports:
+      - "8080:8080"
+    command: ["./bin/stub-services", "-main", "stubs.DatabaseStub"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - app-network
+
+  payment-stub:
+    build:
+      context: .
+      target: stubs
+    container_name: payment-stub
+    ports:
+      - "8081:8081"
+    command: ["./bin/stub-services", "-main", "stubs.PaymentStub"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - app-network
+
+  inventory-stub:
+    build:
+      context: .
+      target: stubs
+    container_name: inventory-stub
+    environment:
+      - DATABASE_URL=http://database-stub:8080
+    ports:
+      - "8082:8082"
+    command: ["./bin/stub-services", "-main", "stubs.InventoryStub"]
+    depends_on:
+      database-stub:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     networks:
       - app-network
 

@@ -1,6 +1,5 @@
 package checkout
 
-import cask.main.Main
 import domain.*
 import upickle.default.*
 import cask.main.MainRoutes
@@ -15,15 +14,15 @@ object CheckoutService extends MainRoutes:
     ujson.Obj("status" -> "healthy", "service" -> "checkout")
 
   @cask.post("/checkout")
-  def checkout(r: cask.Request) =
-    val requestJson = r.text()
-    val request     = read[CheckoutRequest](requestJson)
+  def checkout(request: cask.Request) =
+    val requestJson     = request.text()
+    val checkoutRequest = read[CheckoutRequest](requestJson)
 
     try
       // Step 1: Reserve inventory
       val reserveResponse = requests.post(
         s"$inventoryUrl/reserve",
-        data = write(request.items),
+        data = write(checkoutRequest.items),
         headers = Map("Content-Type" -> "application/json")
       )
 
@@ -32,9 +31,12 @@ object CheckoutService extends MainRoutes:
           s"Inventory reservation failed: ${reserveResponse.text()}"
         )
 
+      val reserveResult    = ujson.read(reserveResponse.text())
+      val inventoryMessage = reserveResult("message").strOpt.getOrElse("")
+
       // Step 2: Process payment
-      val total          = request.items.map(i => i.price * i.quantity).sum
-      val paymentRequest = PaymentRequest(request.cardNumber, total)
+      val total = checkoutRequest.items.map(i => i.price * i.quantity).sum
+      val paymentRequest = PaymentRequest(checkoutRequest.cardNumber, total)
       val paymentResponse = requests.post(
         s"$paymentUrl/process",
         data = write(paymentRequest),
@@ -48,7 +50,7 @@ object CheckoutService extends MainRoutes:
       // Step 3: Save order
       val order = Order(
         id = s"ORD-${System.currentTimeMillis()}",
-        items = request.items,
+        items = checkoutRequest.items,
         total = total,
         status = "COMPLETED"
       )
@@ -59,12 +61,24 @@ object CheckoutService extends MainRoutes:
         headers = Map("Content-Type" -> "application/json")
       )
 
+      // Propagate stub messages if present
+      val messages = List(
+        if payment.message.contains("[STUB]") then Some(payment.message)
+        else None,
+        if inventoryMessage.contains("[STUB]") then Some(inventoryMessage)
+        else None
+      ).flatten
+
+      val finalMessage = if messages.nonEmpty then
+        s"Order completed. ${messages.mkString(" ")} Transaction: ${payment.transactionId}"
+      else
+        s"Order completed successfully. Transaction: ${payment.transactionId}"
+
       val response = CheckoutResponse(
         orderId = order.id,
         total = total,
         status = "COMPLETED",
-        message =
-          s"Order completed successfully. Transaction: ${payment.transactionId}"
+        message = finalMessage
       )
       cask.Response(
         write(response),

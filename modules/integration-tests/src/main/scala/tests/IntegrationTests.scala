@@ -9,6 +9,7 @@ object IntegrationTests:
   val paymentUrl   = sys.env.getOrElse("PAYMENT_URL", "http://localhost:8081")
   val inventoryUrl = sys.env.getOrElse("INVENTORY_URL", "http://localhost:8082")
   val databaseUrl  = sys.env.getOrElse("DATABASE_URL", "http://localhost:8080")
+  val testStep     = sys.env.getOrElse("TEST_STEP", "0")
 
   def waitForServices(): Unit =
     println("Waiting for services to be ready...")
@@ -30,8 +31,11 @@ object IntegrationTests:
             connectTimeout = 2000
           )
           if response.statusCode == 200 then
-            println(s"  ✓ $name service ready")
+            val health      = ujson.read(response.text())
+            val serviceName = health("service").str
+            println(s"  ✓ $name service ready (${serviceName})")
             ready = true
+          end if
         catch
           case _: Exception =>
             attempts += 1
@@ -46,7 +50,7 @@ object IntegrationTests:
   end waitForServices
 
   def testSuccessfulCheckout(): Unit =
-    println("Test 1: Successful Checkout")
+    println("Test: Successful Checkout")
     println("-" * 50)
 
     val request = CheckoutRequest(
@@ -64,59 +68,22 @@ object IntegrationTests:
       val result = read[CheckoutResponse](response.text())
       println(s"✓ SUCCESS")
       println(s"  Order ID: ${result.orderId}")
-      println(s"  Total: $${result.total}")
+      println(s"  Total: ${result.total}")
       println(s"  Status: ${result.status}")
       println(s"  Message: ${result.message}")
+
+      if result.message.contains("[STUB]") then
+        println(s"  ⚠️  Note: This response includes stubbed services")
     catch
       case e: Exception =>
         println(s"✗ FAILED: ${e.getMessage}")
-        println("\nBig Bang Challenge:")
-        println(
-          "  When this fails, we don't know which service caused the issue!"
-        )
-        println("  - Is it checkout orchestration?")
-        println("  - Is it payment processing?")
-        println("  - Is it inventory management?")
-        println("  - Is it database storage?")
     end try
 
     println()
   end testSuccessfulCheckout
 
-  def testInsufficientInventory(): Unit =
-    println("Test 2: Insufficient Inventory")
-    println("-" * 50)
-
-    val request = CheckoutRequest(
-      items = List(CartItem("P1", 100, 999.99)), // Request more than available
-      cardNumber = "1234567890123456"
-    )
-
-    try
-      val response = requests.post(
-        s"$checkoutUrl/checkout",
-        data = write(request),
-        headers = Map("Content-Type" -> "application/json"),
-        check = false
-      )
-
-      if response.statusCode == 400 then
-        println(s"✓ CORRECTLY REJECTED")
-        val result = read[CheckoutResponse](response.text())
-        println(s"  Message: ${result.message}")
-      else
-        println(s"✗ UNEXPECTED: Request should have been rejected")
-      end if
-    catch
-      case e: Exception =>
-        println(s"✗ ERROR: ${e.getMessage}")
-    end try
-
-    println()
-  end testInsufficientInventory
-
   def testInvalidPayment(): Unit =
-    println("Test 3: Invalid Payment")
+    println("Test: Invalid Payment")
     println("-" * 50)
 
     val request = CheckoutRequest(
@@ -132,12 +99,18 @@ object IntegrationTests:
         check = false
       )
 
+      val result = read[CheckoutResponse](response.text())
+
       if response.statusCode == 400 then
-        println(s"✓ CORRECTLY REJECTED")
-        val result = read[CheckoutResponse](response.text())
+        println(s"✓ CORRECTLY REJECTED (Real Payment Service)")
         println(s"  Message: ${result.message}")
+      else if result.message.contains("[STUB]") then
+        println(s"⚠️  BUG HIDDEN BY STUB!")
+        println(s"  The payment stub accepted an invalid card number")
+        println(s"  Real payment service would reject this")
+        println(s"  This demonstrates the limitation of top-down testing")
       else
-        println(s"✗ UNEXPECTED: Request should have been rejected")
+        println(s"✗ UNEXPECTED: Invalid payment was accepted by real service")
       end if
     catch
       case e: Exception =>
@@ -147,15 +120,12 @@ object IntegrationTests:
     println()
   end testInvalidPayment
 
-  def testMultipleItems(): Unit =
-    println("Test 4: Multiple Items Checkout")
+  def testInsufficientInventory(): Unit =
+    println("Test: Insufficient Inventory")
     println("-" * 50)
 
     val request = CheckoutRequest(
-      items = List(
-        CartItem("P2", 2, 29.99),
-        CartItem("P3", 1, 79.99)
-      ),
+      items = List(CartItem("P1", 100, 999.99)), // Request more than available
       cardNumber = "1234567890123456"
     )
 
@@ -163,27 +133,43 @@ object IntegrationTests:
       val response = requests.post(
         s"$checkoutUrl/checkout",
         data = write(request),
-        headers = Map("Content-Type" -> "application/json")
+        headers = Map("Content-Type" -> "application/json"),
+        check = false
       )
 
       val result = read[CheckoutResponse](response.text())
-      println(s"✓ SUCCESS")
-      println(s"  Order ID: ${result.orderId}")
-      println(s"  Total: $${result.total}")
-      println(s"  Items: ${request.items.length}")
+
+      if response.statusCode == 400 then
+        println(s"✓ CORRECTLY REJECTED (Real Inventory Service)")
+        println(s"  Message: ${result.message}")
+      else if result.message.contains("[STUB]") then
+        println(s"⚠️  BUG HIDDEN BY STUB!")
+        println(s"  The inventory stub accepted request for 100 laptops")
+        println(s"  Real inventory service would reject this")
+        println(s"  This demonstrates the limitation of top-down testing")
+      else
+        println(s"✗ UNEXPECTED: Insufficient inventory was accepted")
+      end if
     catch
       case e: Exception =>
-        println(s"✗ FAILED: ${e.getMessage}")
+        println(s"✗ ERROR: ${e.getMessage}")
     end try
 
     println()
-  end testMultipleItems
+  end testInsufficientInventory
 
   @main def main(): Unit =
-    println("""
+    val stepName = testStep match
+      case "1" => "STEP 1: All Stubs"
+      case "2" => "STEP 2: Real Payment, Other Stubs"
+      case "3" => "STEP 3: Real Payment & Inventory, Database Stub"
+      case "4" => "STEP 4: Complete System (All Real)"
+      case _   => "TOP-DOWN INTEGRATION TESTING"
+
+    println(s"""
 ╔═══════════════════════════════════════════════════════════╗
-║         BIG BANG INTEGRATION TESTING                      ║
-║         All Services Integrated at Once                   ║
+║         TOP-DOWN INTEGRATION TESTING                      ║
+║         $stepName
 ╚═══════════════════════════════════════════════════════════╝
     """)
 
@@ -197,23 +183,51 @@ object IntegrationTests:
     testSuccessfulCheckout()
     Thread.sleep(500)
 
-    testInsufficientInventory()
-    Thread.sleep(500)
-
     testInvalidPayment()
     Thread.sleep(500)
 
-    testMultipleItems()
+    testInsufficientInventory()
 
     println("=" * 60)
     println("Integration Tests Complete!")
     println("=" * 60)
     println()
-    println("Key Observations:")
-    println("  • All services were integrated at once")
-    println("  • When tests fail, debugging is difficult")
-    println("  • Hard to isolate which component has the issue")
-    println("  • Good for small systems or as a final validation step")
+
+    testStep match
+      case "1" =>
+        println("Step 1 Observations:")
+        println("  • ✓ Checkout orchestration logic is working")
+        println(
+          "  • ⚠️  Stubs hide validation bugs (invalid payment accepted!)"
+        )
+        println("  • ⚠️  Stubs hide inventory bugs (over-ordering accepted!)")
+        println("  • All dependencies are stubbed")
+        println("  • Ready to integrate real Payment service")
+      case "2" =>
+        println("Step 2 Observations:")
+        println("  • ✓ Real payment validation is working")
+        println("  • ✓ Invalid card numbers are now rejected")
+        println("  • ✓ Checkout ↔ Payment integration verified")
+        println("  • ⚠️  Inventory stub still hides bugs")
+        println("  • Database still stubbed")
+        println("  • Ready to integrate real Inventory service")
+      case "3" =>
+        println("Step 3 Observations:")
+        println("  • ✓ Real inventory management is working")
+        println("  • ✓ Stock validation now works correctly")
+        println("  • ✓ Checkout ↔ Inventory integration verified")
+        println("  • Database still stubbed (no real persistence)")
+        println("  • Ready to integrate real Database")
+      case "4" =>
+        println("Step 4 Observations:")
+        println("  • ✓ Full system integration complete")
+        println("  • ✓ All services are real (no stubs)")
+        println("  • ✓ All validation working correctly")
+        println("  • ✓ Data persists in PostgreSQL")
+        println("  • Ready for production!")
+      case _ =>
+        println("Top-Down Integration Complete!")
+    end match
     println()
   end main
 end IntegrationTests

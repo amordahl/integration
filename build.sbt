@@ -31,7 +31,7 @@ lazy val databaseSettings = commonSettings ++ Seq(
 
 // Root project
 lazy val root = (project in file("."))
-  .aggregate(domain, database, payment, inventory, checkout)
+  .aggregate(domain, checkout, stubs)
   .settings(
     name                                   := "integration-testing-demo",
     publish / skip                         := true,
@@ -47,37 +47,6 @@ lazy val domain = (project in file("modules/domain"))
     commonSettings
   )
 
-// Database service
-lazy val database = (project in file("modules/database"))
-  .enablePlugins(JavaServerAppPackaging)
-  .dependsOn(domain)
-  .settings(
-    name := "database-service",
-    serviceSettings,
-    databaseSettings,
-    Compile / mainClass := Some("database.DatabaseService")
-  )
-
-// Payment service
-lazy val payment = (project in file("modules/payment"))
-  .enablePlugins(JavaServerAppPackaging)
-  .dependsOn(domain)
-  .settings(
-    name := "payment-service",
-    serviceSettings,
-    Compile / mainClass := Some("payment.PaymentService")
-  )
-
-// Inventory service
-lazy val inventory = (project in file("modules/inventory"))
-  .enablePlugins(JavaServerAppPackaging)
-  .dependsOn(domain)
-  .settings(
-    name := "inventory-service",
-    serviceSettings ++ clientSettings,
-    Compile / mainClass := Some("inventory.InventoryService")
-  )
-
 // Checkout service (includes integration tests)
 lazy val checkout = (project in file("modules/checkout"))
   .enablePlugins(JavaServerAppPackaging)
@@ -86,6 +55,15 @@ lazy val checkout = (project in file("modules/checkout"))
     name := "checkout-service",
     serviceSettings ++ clientSettings,
     Compile / mainClass := Some("checkout.CheckoutService")
+  )
+
+// Stubs
+lazy val stubs = (project in file("modules/stubs"))
+  .enablePlugins(JavaServerAppPackaging)
+  .dependsOn(domain)
+  .settings(
+    name := "stub-services",
+    serviceSettings
   )
 
 // Integration tests as a separate subproject (modern SBT best practice)
