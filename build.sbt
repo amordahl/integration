@@ -96,3 +96,12 @@ lazy val integrationTests = (project in file("modules/integration-tests"))
     clientSettings,
     publish / skip := true
   )
+
+// Test drivers for bottom-up testing
+lazy val drivers = (project in file("modules/drivers"))
+  .dependsOn(domain)
+  .settings(
+    name := "test-drivers",
+    clientSettings,
+    publish / skip := true
+  )

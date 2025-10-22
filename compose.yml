@@ -12,7 +12,7 @@ services:
       - db-data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -36,92 +36,23 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8080/health" ]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 5s
       timeout: 3s
       retries: 10
     networks:
       - app-network
 
-  payment:
+  database-driver:
     build:
       context: .
-      target: payment
-    container_name: payment-service
-    ports:
-      - "8081:8081"
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8081/health" ]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    networks:
-      - app-network
-
-  inventory:
-    build:
-      context: .
-      target: inventory
-    container_name: inventory-service
+      target: drivers
+    container_name: database-driver
     environment:
       - DATABASE_URL=http://database:8080
-    ports:
-      - "8082:8082"
+    command: ["sbt", "drivers/runMain drivers.database.main"]
     depends_on:
       database:
-        condition: service_healthy
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8082/health" ]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    networks:
-      - app-network
-
-  checkout:
-    build:
-      context: .
-      target: checkout
-    container_name: checkout-service
-    environment:
-      - DATABASE_URL=http://database:8080
-      - PAYMENT_URL=http://payment:8081
-      - INVENTORY_URL=http://inventory:8082
-    ports:
-      - "8083:8083"
-    depends_on:
-      database:
-        condition: service_healthy
-      payment:
-        condition: service_healthy
-      inventory:
-        condition: service_healthy
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8083/health" ]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    networks:
-      - app-network
-
-  integration-tests:
-    build:
-      context: .
-      target: tests
-    container_name: integration-tests
-    environment:
-      - DATABASE_URL=http://database:8080
-      - PAYMENT_URL=http://payment:8081
-      - INVENTORY_URL=http://inventory:8082
-      - CHECKOUT_URL=http://checkout:8083
-    depends_on:
-      database:
-        condition: service_healthy
-      payment:
-        condition: service_healthy
-      inventory:
-        condition: service_healthy
-      checkout:
         condition: service_healthy
     networks:
       - app-network

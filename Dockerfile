@@ -18,6 +18,9 @@ RUN sbt database/stage && \
   sbt inventory/stage && \
   sbt checkout/stage
 
+# Build drivers
+RUN sbt drivers/compile
+
 # Build integration tests
 RUN sbt integrationTests/compile
 
@@ -49,13 +52,14 @@ WORKDIR /app
 COPY --from=builder /app/modules/checkout/target/universal/stage ./
 CMD ["./bin/checkout-service"]
 
-# Stage 5: Integration Tests
-# This stage runs the integration tests from the separate integration-tests module
-FROM sbtscala/scala-sbt:eclipse-temurin-17.0.15_6_1.11.7_3.7.3 AS tests
+# Stage 5: Test Drivers
+FROM sbtscala/scala-sbt:eclipse-temurin-17.0.15_6_1.11.7_3.7.3 AS drivers
 WORKDIR /app
 
 COPY build.sbt .
 COPY project ./project
 COPY modules ./modules
 
-CMD ["sbt", "integrationTests/run"]
+# Default command can be overridden
+CMD ["sbt", "drivers/run"]
+
