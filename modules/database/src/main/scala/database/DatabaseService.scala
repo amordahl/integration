@@ -53,6 +53,7 @@ object DatabaseService extends MainRoutes:
           "success"  -> true,
           "newStock" -> product.map(_.stock).getOrElse(0)
         ).render(),
+        statusCode = 200,
         headers = Seq("Content-Type" -> "application/json")
       )
     else

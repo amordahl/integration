@@ -84,32 +84,29 @@ class DatabaseDriver:
     println("Test: Update Stock")
     println("-" * 50)
 
-    try
-      // First get current stock
-      val getResponse   = requests.get(s"$databaseUrl/products/P2")
-      val product       = read[Product](getResponse.text())
-      val originalStock = product.stock
+    // First get current stock
+    val getResponse   = requests.get(s"$databaseUrl/products/P2")
+    val product       = read[Product](getResponse.text())
+    val originalStock = product.stock
 
-      // Update stock
-      val updateData = ujson.Obj("quantity" -> 5)
-      val updateResponse = requests.post(
-        s"$databaseUrl/products/P2/update-stock",
-        data = updateData.render(),
-        headers = Map("Content-Type" -> "application/json")
-      )
+    // Update stock
+    val updateData = ujson.Obj("quantity" -> 5)
+    val updateResponse = requests.post(
+      s"$databaseUrl/products/P2/update-stock",
+      data = updateData.render(),
+      headers = Map("Content-Type" -> "application/json")
+    )
 
-      val result   = ujson.read(updateResponse.text())
-      val newStock = result("newStock").num.toInt
+    println(s"Response: ${updateResponse.text()}")
+    val result = ujson.read(updateResponse.text())
+    println(s"Read as ${result.render()}")
+    val newStock = result("newStock").num.toInt
 
-      println(s"✓ SUCCESS")
-      println(s"  Original stock: $originalStock")
-      println(s"  Reserved: 5")
-      println(s"  New stock: $newStock")
-      println(s"  Calculation correct: ${originalStock - 5 == newStock}")
-    catch
-      case e: Exception =>
-        println(s"✗ FAILED: ${e.getMessage}")
-    end try
+    println(s"✓ SUCCESS")
+    println(s"  Original stock: $originalStock")
+    println(s"  Reserved: 5")
+    println(s"  New stock: $newStock")
+    println(s"  Calculation correct: ${originalStock - 5 == newStock}")
 
     println()
   end testUpdateStock
