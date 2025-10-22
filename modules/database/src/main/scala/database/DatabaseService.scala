@@ -41,7 +41,7 @@ object DatabaseService extends MainRoutes:
     )
   end getAllProducts
 
-  @cask.post("/products/:id/update-stock")
+  @cask.postJson("/products/:id/update-stock")
   def updateStock(id: String, quantity: Int) =
     val success =
       Await.result(DatabaseManager.updateStock(id, quantity), 5.seconds)

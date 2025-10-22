@@ -80,16 +80,26 @@ object DatabaseManager:
   def getAllProducts(): Future[Iterable[Product]] =
     db.run(products.result.map(s => s.map(p => p.toProduct())))
 
-  def updateStock(productId: String, quantity: Int): Future[Boolean] =
-    val query =
-      for
-        productOpt <- products.filter(_.id === productId).result.headOption
-        result <- products.filter(
-          _.id === productId
-        ).map(_.stock).update(productOpt.get.stock - quantity)
-      yield result > 0
-
-    db.run(query)
+  def updateStock(productId: String, quantityChange: Int): Future[Boolean] =
+    // First check current stock
+    getProduct(productId).flatMap {
+      case Some(product) =>
+        val newStock = product.stock - quantityChange
+        if newStock < 0 then
+          // Not enough stock - return false gracefully
+          Future.successful(false)
+        else
+          // Proceed with update
+          db.run(
+            products
+              .filter(_.id === productId)
+              .map(_.stock)
+              .update(newStock)
+          ).map(_ > 0)
+        end if
+      case None =>
+        Future.successful(false)
+    }
   end updateStock
 
   def saveOrder(order: Order): Future[Boolean] =

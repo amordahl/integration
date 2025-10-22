@@ -64,7 +64,8 @@ object InventoryService extends MainRoutes:
     try
       // Check and reserve all items
       items.foreach { item =>
-        val updateData = ujson.Obj("quantity" -> item.quantity)
+        val updateData =
+          ujson.Obj("id" -> item.productId, "quantity" -> item.quantity)
         val response = requests.post(
           s"$databaseUrl/products/${item.productId}/update-stock",
           data = updateData.render(),
