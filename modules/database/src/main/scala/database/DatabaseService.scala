@@ -52,7 +52,7 @@ object DatabaseService extends MainRoutes:
         ujson.Obj(
           "success"  -> true,
           "newStock" -> product.map(_.stock).getOrElse(0)
-        ).render(),
+        ),
         statusCode = 200,
         headers = Seq("Content-Type" -> "application/json")
       )
@@ -61,7 +61,7 @@ object DatabaseService extends MainRoutes:
         ujson.Obj(
           "success" -> false,
           "error"   -> "Insufficient stock or product not found"
-        ).render(),
+        ),
         statusCode = 400,
         headers = Seq("Content-Type" -> "application/json")
       )
