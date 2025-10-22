@@ -64,7 +64,7 @@ object IntegrationTests:
       val result = read[CheckoutResponse](response.text())
       println(s"✓ SUCCESS")
       println(s"  Order ID: ${result.orderId}")
-      println(s"  Total: $${result.total}")
+      println(s"  Total: ${result.total}")
       println(s"  Status: ${result.status}")
       println(s"  Message: ${result.message}")
     catch
@@ -169,7 +169,7 @@ object IntegrationTests:
       val result = read[CheckoutResponse](response.text())
       println(s"✓ SUCCESS")
       println(s"  Order ID: ${result.orderId}")
-      println(s"  Total: $${result.total}")
+      println(s"  Total: ${result.total}")
       println(s"  Items: ${request.items.length}")
     catch
       case e: Exception =>
