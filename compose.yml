@@ -43,6 +43,55 @@ services:
     networks:
       - app-network
 
+  payment:
+    build:
+      context: .
+      target: payment
+    container_name: payment-service
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - app-network
+
+  inventory:
+    build:
+      context: .
+      target: inventory
+    container_name: inventory-service
+    environment:
+      - DATABASE_URL=http://database:8080
+    ports:
+      - "8082:8082"
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - app-network
+
+  payment-driver:
+    build:
+      context: .
+      target: drivers
+    container_name: payment-driver
+    environment:
+      - PAYMENT_URL=http://payment:8081
+    command: ["sbt", "drivers/runMain drivers.payment.main"]
+    depends_on:
+      payment:
+        condition: service_healthy
+    networks:
+      - app-network
+
   database-driver:
     build:
       context: .
