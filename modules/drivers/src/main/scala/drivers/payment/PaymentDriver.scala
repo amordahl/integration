@@ -120,7 +120,7 @@ object PaymentDriver:
     println("""
 ╔═══════════════════════════════════════════════════════════╗
 ║         BOTTOM-UP INTEGRATION TESTING                     ║
-║         STEP 2: Payment Service with Test Driver         ║
+║         STEP 2: Payment Service with Test Driver          ║
 ╚═══════════════════════════════════════════════════════════╝
     """)
 
