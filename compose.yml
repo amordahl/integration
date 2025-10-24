@@ -123,6 +123,52 @@ services:
     networks:
       - app-network
 
+  checkout:
+    build:
+      context: .
+      target: checkout
+    container_name: checkout-service
+    environment:
+      - DATABASE_URL=http://database:8080
+      - PAYMENT_URL=http://payment:8081
+      - INVENTORY_URL=http://inventory:8082
+    ports:
+      - "8083:8083"
+    depends_on:
+      database:
+        condition: service_healthy
+      payment:
+        condition: service_healthy
+      inventory:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - app-network
+
+  checkout-driver:
+    build:
+      context: .
+      target: drivers
+    container_name: checkout-driver
+    environment:
+      - CHECKOUT_URL=http://checkout:8083
+    command: ["sbt", "drivers/runMain drivers.checkout.main"]
+    depends_on:
+      database:
+        condition: service_healthy
+      payment:
+        condition: service_healthy
+      inventory:
+        condition: service_healthy
+      checkout:
+        condition: service_healthy
+    networks:
+      - app-network
+
 networks:
   app-network:
     driver: bridge
