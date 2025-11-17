@@ -21,6 +21,9 @@ RUN sbt database/stage && \
 # Build integration tests
 RUN sbt integrationTests/compile
 
+# Build e2e tests
+RUN sbt e2eTests/compile
+
 # Base stage with JRE and curl for health checks
 FROM eclipse-temurin:17-jre AS base
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
@@ -59,3 +62,14 @@ COPY project ./project
 COPY modules ./modules
 
 CMD ["sbt", "integrationTests/run"]
+
+# Stage 6: E2E Tests
+# This stage runs e2e tests focused on user journeys and data consistency
+FROM sbtscala/scala-sbt:eclipse-temurin-17.0.15_6_1.11.7_3.7.3 AS e2e-tests
+WORKDIR /app
+
+COPY build.sbt .
+COPY project ./project
+COPY modules ./modules
+
+CMD ["sbt", "e2eTests/run"]

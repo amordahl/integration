@@ -31,7 +31,7 @@ lazy val databaseSettings = commonSettings ++ Seq(
 
 // Root project
 lazy val root = (project in file("."))
-  .aggregate(domain, database, payment, inventory, checkout)
+  .aggregate(domain, database, payment, inventory, checkout, integrationTests, e2eTests)
   .settings(
     name                                   := "integration-testing-demo",
     publish / skip                         := true,
@@ -93,6 +93,15 @@ lazy val integrationTests = (project in file("modules/integration-tests"))
   .dependsOn(domain)
   .settings(
     name := "integration-tests",
+    clientSettings,
+    publish / skip := true
+  )
+
+// E2E tests - focused on user journeys and data consistency
+lazy val e2eTests = (project in file("modules/e2e-tests"))
+  .dependsOn(domain)
+  .settings(
+    name := "e2e-tests",
     clientSettings,
     publish / skip := true
   )
